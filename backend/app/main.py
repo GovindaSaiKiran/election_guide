@@ -8,6 +8,7 @@ import os
 import logging
 import google.cloud.logging
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.routes.routes import router as api_router
@@ -87,6 +88,14 @@ def create_app() -> FastAPI:
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend"
     )
     if os.path.exists(frontend_path):
+        # Vercel can forward the root request with an empty path to the ASGI app.
+        # Serve the document explicitly, while StaticFiles serves its assets.
+        index_path = os.path.join(frontend_path, "index.html")
+
+        @app.get("/", include_in_schema=False)
+        async def frontend_index():
+            return FileResponse(index_path, media_type="text/html")
+
         app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
     else:
         logger.warning(f"Frontend directory not found at {frontend_path}")
